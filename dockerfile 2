@@ -1,0 +1,34 @@
+# Use Node.js as the base image
+FROM node:18-alpine AS builder
+
+# Set working directory
+WORKDIR /app
+
+# Copy package.json and package-lock.json first for caching
+COPY package.json package-lock.json ./
+
+# Install dependencies
+RUN npm install --frozen-lockfile
+
+# Copy the rest of the project files
+COPY . .
+
+# Build the application
+RUN npm run build
+
+# ---- Production Stage ----
+FROM node:18-alpine AS runner
+
+# Set working directory
+WORKDIR /app
+
+# Copy built files from previous stage
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/dist ./dist
+
+# Expose the correct port from .env
+EXPOSE 4000
+
+# Start the application using the .env port
+CMD ["node", "dist/main"]
